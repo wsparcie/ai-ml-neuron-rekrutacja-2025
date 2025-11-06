@@ -26,16 +26,24 @@ class EEGDataLoader:
             print(f"Loaded metadata for {len(self.metadata)} participants")
     
     def _scan_participants(self) -> List[str]:
+        excluded_folders = [
+            'Popsute dane - ASD793JD',
+            '6A517891 - stare dane'
+        ]
+        
         participants = []
         for item in self.data_root.iterdir():
             if item.is_dir() and not item.name.startswith('.'):
+                if item.name in excluded_folders:
+                    print(f"Skipping excluded folder: {item.name}")
+                    continue
+                    
                 fif_files = list(item.glob('*.fif'))
                 if len(fif_files) > 0:
                     participants.append(item.name)
         return sorted(participants)
     
     def _load_metadata(self) -> Optional[pd.DataFrame]:
-        """Load participant metadata from Ankiety.csv"""
         metadata_file = self.data_root / 'Ankiety.csv'
         if not metadata_file.exists():
             print("Warning: Ankiety.csv not found")
@@ -59,7 +67,6 @@ class EEGDataLoader:
             return None
     
     def get_participant_sex(self, participant_id: str) -> Optional[str]:
-        """Get participant sex (M/K) from metadata"""
         if self.metadata is None:
             return None
         
@@ -72,6 +79,25 @@ class EEGDataLoader:
         sex_col = [col for col in self.metadata.columns if 'e' in col.lower() and len(col) <= 5]
         if sex_col:
             return match[sex_col[0]].values[0]
+        return None
+    
+    def get_participant_age(self, participant_id: str) -> Optional[int]:
+        if self.metadata is None:
+            return None
+        
+        participant_id_upper = participant_id.upper()
+        match = self.metadata[self.metadata['UUID'] == participant_id_upper]
+        
+        if len(match) == 0:
+            return None
+        
+        age_col = [col for col in self.metadata.columns if 'wiek' in col.lower() or 'age' in col.lower()]
+        if age_col:
+            age_value = match[age_col[0]].values[0]
+            try:
+                return int(age_value)
+            except (ValueError, TypeError):
+                return None
         return None
     
     def load_participant_data(self, participant_id: str, 
@@ -117,6 +143,7 @@ class EEGDataLoader:
                 'participant_id': participant,
                 'n_files': len(fif_files),
                 'sex': self.get_participant_sex(participant),
+                'age': self.get_participant_age(participant),
             }
             
             for full_name, short_name in self.BLOCK_TYPES.items():
