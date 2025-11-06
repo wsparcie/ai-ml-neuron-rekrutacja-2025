@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Optional
 import mne
 import numpy as np
 import pandas as pd
@@ -20,7 +20,10 @@ class EEGDataLoader:
             raise ValueError(f"Data root does not exist: {data_root}")
         
         self.participants = self._scan_participants()
+        self.metadata = self._load_metadata()
         print(f"Found {len(self.participants)} participants")
+        if self.metadata is not None:
+            print(f"Loaded metadata for {len(self.metadata)} participants")
     
     def _scan_participants(self) -> List[str]:
         participants = []
@@ -30,6 +33,46 @@ class EEGDataLoader:
                 if len(fif_files) > 0:
                     participants.append(item.name)
         return sorted(participants)
+    
+    def _load_metadata(self) -> Optional[pd.DataFrame]:
+        """Load participant metadata from Ankiety.csv"""
+        metadata_file = self.data_root / 'Ankiety.csv'
+        if not metadata_file.exists():
+            print("Warning: Ankiety.csv not found")
+            return None
+        
+        try:
+            for encoding in ['utf-8', 'cp1250', 'iso-8859-2', 'windows-1250']:
+                try:
+                    df = pd.read_csv(metadata_file, sep=';', encoding=encoding)
+                    df.columns = [col.strip() for col in df.columns]
+                    df['UUID'] = df['UUID'].str.upper().str.strip()
+                    print(f"Successfully loaded metadata with encoding: {encoding}")
+                    return df
+                except UnicodeDecodeError:
+                    continue
+            
+            print("Warning: Could not decode metadata file with any encoding")
+            return None
+        except Exception as e:
+            print(f"Warning: Could not load metadata: {e}")
+            return None
+    
+    def get_participant_sex(self, participant_id: str) -> Optional[str]:
+        """Get participant sex (M/K) from metadata"""
+        if self.metadata is None:
+            return None
+        
+        participant_id_upper = participant_id.upper()
+        match = self.metadata[self.metadata['UUID'] == participant_id_upper]
+        
+        if len(match) == 0:
+            return None
+        
+        sex_col = [col for col in self.metadata.columns if 'e' in col.lower() and len(col) <= 5]
+        if sex_col:
+            return match[sex_col[0]].values[0]
+        return None
     
     def load_participant_data(self, participant_id: str, 
                             preload: bool = True) -> Dict[str, mne.io.Raw]:
@@ -73,6 +116,7 @@ class EEGDataLoader:
             row = {
                 'participant_id': participant,
                 'n_files': len(fif_files),
+                'sex': self.get_participant_sex(participant),
             }
             
             for full_name, short_name in self.BLOCK_TYPES.items():
