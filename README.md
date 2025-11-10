@@ -10,15 +10,31 @@
 
 <div align="center">
 
-[![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python)](https://www.python.org/) [![MNE-Python](https://img.shields.io/badge/MNE--Python-1.7-8DD6F9?logo=python)](https://mne.tools/) [![NumPy](https://img.shields.io/badge/NumPy-2.1-013243?logo=numpy)](https://numpy.org/) [![Pandas](https://img.shields.io/badge/Pandas-2.2-150458?logo=pandas)](https://pandas.pydata.org/)
+[![Python](https://img.shields.io/badge/Python-3.13-3776AB?logo=python)](https://www.python.org/) [![MNE-Python](https://img.shields.io/badge/MNE--Python-1.5+-8DD6F9?logo=python)](https://mne.tools/) [![NumPy](https://img.shields.io/badge/NumPy-1.24+-013243?logo=numpy)](https://numpy.org/) [![Pandas](https://img.shields.io/badge/Pandas-2.0+-150458?logo=pandas)](https://pandas.pydata.org/)
 
-[![SciPy](https://img.shields.io/badge/SciPy-1.14-8CAAE6?logo=scipy)](https://scipy.org/) [![scikit-learn](https://img.shields.io/badge/scikit--learn-1.5-F7931E?logo=scikitlearn)](https://scikit-learn.org/) [![Matplotlib](https://img.shields.io/badge/Matplotlib-3.9-11557c)](https://matplotlib.org/) [![Seaborn](https://img.shields.io/badge/Seaborn-0.13-9cf)](https://seaborn.pydata.org/)
+[![SciPy](https://img.shields.io/badge/SciPy-1.10+-8CAAE6?logo=scipy)](https://scipy.org/) [![scikit-learn](https://img.shields.io/badge/scikit--learn-1.3+-F7931E?logo=scikitlearn)](https://scikit-learn.org/) [![Matplotlib](https://img.shields.io/badge/Matplotlib-3.7+-11557c)](https://matplotlib.org/) [![Seaborn](https://img.shields.io/badge/Seaborn-0.12+-9cf)](https://seaborn.pydata.org/)
 
-[![Jupyter](https://img.shields.io/badge/Jupyter-Lab-F37626?logo=jupyter)](https://jupyter.org/) [![VS Code](https://img.shields.io/badge/VS_Code-Compatible-007ACC?logo=visualstudiocode)](https://code.visualstudio.com/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-EE4C2C?logo=pytorch)](https://pytorch.org/) [![Jupyter](https://img.shields.io/badge/Jupyter-Lab-F37626?logo=jupyter)](https://jupyter.org/)
 
-[![Status](https://img.shields.io/badge/Status-Complete-success)]() [![License](https://img.shields.io/badge/License-MIT-blue)](LICENSE)
+[![Status](https://img.shields.io/badge/Status-Alpha-yellow)]() [![License](https://img.shields.io/badge/License-MIT-blue)](LICENSE)
 
 </div>
+
+## Notebooks
+
+### Exploratory Data Analysis (eda.ipynb)
+
+Exploratory analysis covering signal quality assessment, P300 component visualization, neural oscillations analysis, sex-based comparisons through 4 integrated charts, age correlation analysis via 1 integrated chart, and topographic maps of brain activity patterns.
+
+### Machine Learning Models (baseline_models.ipynb)
+
+Person-independent cross-validation using GroupKFold strategy with variance threshold and F-score based feature selection, including confusion matrices and performance comparison charts across all classifiers.
+
+##### Training and evaluation of:
+
+- Random Forest Classifier
+- Support Vector Machine (SVM)
+- K-Nearest Neighbors (KNN)
 
 ## Analysis Pipeline
 
@@ -36,22 +52,6 @@ graph TD
     H --> J[Model Performance<br/>Metrics]
 
 ```
-
-## Notebooks
-
-### Exploratory Data Analysis (eda.ipynb)
-
-Exploratory analysis covering signal quality assessment, P300 component visualization, neural oscillations analysis, sex-based comparisons through 4 integrated charts, age correlation analysis via 1 integrated chart, and topographic maps of brain activity patterns.
-
-### Machine Learning Models (baseline_models.ipynb)
-
-Person-independent cross-validation using GroupKFold strategy with variance threshold and F-score based feature selection, including confusion matrices and performance comparison charts across all classifiers.
-
-##### Training and evaluation of:
-
-- Random Forest Classifier
-- Support Vector Machine (SVM)
-- K-Nearest Neighbors (KNN)
 
 ## Technical Details
 
