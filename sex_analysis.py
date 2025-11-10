@@ -1,524 +1,259 @@
-import matplotlib
-matplotlib.use('Agg')
-
 import numpy as np
 import pandas as pd
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import seaborn as sns
-from pathlib import Path
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import cross_val_score, StratifiedKFold, cross_val_predict
-from sklearn.metrics import classification_report, confusion_matrix
-from scipy import stats
+import pickle
 import warnings
+
+from data_loader import EEGDataLoader, get_default_data_path
+
 warnings.filterwarnings('ignore')
+sns.set_style('whitegrid')
+plt.rcParams['figure.figsize'] = (12, 6)
 
-from data_loader import EEGDataLoader
-from preprocessing import EEGPreprocessor, FeatureExtractor
 
-
-def load_and_preprocess_with_sex():
-    print("Loading and preprocessing data with sex labels...")
-    
-    data_path = Path(r"C:\Users\kamil\Documents\github\neuron\lie-detector\DATA\lie-detector")
-    loader = EEGDataLoader(data_path)
-    preprocessor = EEGPreprocessor()
-    feature_extractor = FeatureExtractor(sampling_freq=250)
-    
-    summary = loader.create_summary_dataframe()
-    participants_with_sex = summary[summary['sex'].notna()]
-    
-    all_features = []
-    all_labels = []
-    all_sex = []
-    all_participants = []
-    
-    male_features_list = []
-    female_features_list = []
-    male_labels_list = []
-    female_labels_list = []
-    
-    for _, row in participants_with_sex.iterrows():
-        participant_id = row['participant_id']
-        sex = row['sex']
-        sex_binary = 1 if sex == 'M' else 0
-        
-        print(f"Processing {participant_id} (Sex: {sex})")
-        
-        try:
-            participant_data = loader.load_participant_data(participant_id, preload=True)
-            
-            for block_name, raw in participant_data.items():
-                if 'deceitful' in block_name.lower():
-                    label = 1
-                else:
-                    label = 0
-                
-                epochs = preprocessor.preprocess_pipeline(raw)
-                
-                if epochs is None or len(epochs) == 0:
-                    continue
-                
-                try:
-                    features = feature_extractor.extract_combined_features(epochs)
-
-                    all_features.extend(features)
-                    all_labels.extend([label] * len(features))
-                    all_sex.extend([sex_binary] * len(features))
-                    all_participants.extend([participant_id] * len(features))
-
-                    if sex == 'M':
-                        male_features_list.extend(features)
-                        male_labels_list.extend([label] * len(features))
-                    else:
-                        female_features_list.extend(features)
-                        female_labels_list.extend([label] * len(features))
-                    
-                    print(f"  {block_name}: {len(features)} epochs")
-                    
-                except KeyboardInterrupt:
-                    raise
-                except Exception as feat_err:
-                    print(f"  Warning: Could not extract features from {block_name}: {feat_err}")
-                    continue
-                    
-        except KeyboardInterrupt:
-            raise
-        except Exception as e:
-            print(f"  Error processing {participant_id}: {e}")
-
-    X = np.array(all_features)
-    y = np.array(all_labels)
-    sex_array = np.array(all_sex).reshape(-1, 1)
-
-    X_with_sex = np.hstack([X, sex_array])
-    
-    print(f"\nTotal epochs: {len(y)}")
-    print(f"Male epochs: {np.sum(sex_array == 1)}")
-    print(f"Female epochs: {np.sum(sex_array == 0)}")
-    
-    return {
-        'X': X,
-        'X_with_sex': X_with_sex,
-        'y': y,
-        'sex': sex_array.flatten(),
-        'participants': all_participants,
-        'male_features': np.array(male_features_list),
-        'male_labels': np.array(male_labels_list),
-        'female_features': np.array(female_features_list),
-        'female_labels': np.array(female_labels_list)
+def normalize_metadata_columns(metadata):
+    column_mapping = {
+        'Płeć': 'Sex',
+        'Wiek': 'Age',
+        'UUID': 'ID'
     }
+    for polish_name, english_name in column_mapping.items():
+        if polish_name in metadata.columns:
+            metadata = metadata.rename(columns={polish_name: english_name})
+    return metadata
 
 
-def compare_models(data):
-    print("\n" + "=" * 60)
-    print("1. COMPARING MODELS: WITH vs WITHOUT SEX FEATURE")
-    print("=" * 60)
+def collect_feature_data(loader, metadata, real_features, feature_name):
+    data = []
+    for participant_id in loader.participants:
+        participant_meta = metadata[metadata['ID'] == participant_id]
+        if participant_meta.empty:
+            continue
+        
+        sex = participant_meta['Sex'].iloc[0]
+        
+        for block_type in ['honest_true', 'deceitful_true', 'honest_fake', 'deceitful_fake']:
+            if block_type not in real_features[feature_name]:
+                continue
+            if participant_id not in real_features[feature_name][block_type]:
+                continue
+            
+            value = real_features[feature_name][block_type][participant_id]
+            if value is None:
+                continue
+            
+            record = {
+                'participant': participant_id,
+                'sex': sex,
+                'block': block_type,
+                feature_name: value
+            }
+            
+            if feature_name in ['p300', 'response_time']:
+                record['label'] = 'deceitful' if 'deceitful' in block_type else 'honest'
+            
+            data.append(record)
     
-    X = data['X']
-    X_with_sex = data['X_with_sex']
-    y = data['y']
+    return pd.DataFrame(data)
+
+
+def plot_erp_waveforms(p300_df, output_path):
+    if p300_df.empty:
+        return
     
-    cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
-
-    print("\nModel WITHOUT sex feature:")
-    clf_without = RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1)
-    scores_without = cross_val_score(clf_without, X, y, cv=cv, scoring='accuracy')
-    print(f"Mean accuracy: {scores_without.mean():.4f} (+/- {scores_without.std() * 2:.4f})")
-
-    print("\nModel WITH sex feature:")
-    clf_with = RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1)
-    scores_with = cross_val_score(clf_with, X_with_sex, y, cv=cv, scoring='accuracy')
-    print(f"Mean accuracy: {scores_with.mean():.4f} (+/- {scores_with.std() * 2:.4f})")
+    fig, axes = plt.subplots(1, 2, figsize=(16, 6))
     
-    improvement = scores_with.mean() - scores_without.mean()
-    print(f"\nImprovement: {improvement:.4f} ({improvement*100:.2f}%)")
+    for idx, sex in enumerate(['K', 'M']):
+        sex_data = p300_df[p300_df['sex'] == sex]
+        if sex_data.empty:
+            continue
+        
+        honest_p300 = sex_data[sex_data['label'] == 'honest']['p300'].values
+        deceitful_p300 = sex_data[sex_data['label'] == 'deceitful']['p300'].values
+        
+        time_points = np.linspace(0, 2, 100)
+        honest_wave = np.interp(time_points, [0, 0.3, 0.5, 1.0, 2.0], 
+                                [-2, -1, np.mean(honest_p300) if len(honest_p300) > 0 else 3, -3, -7])
+        deceitful_wave = np.interp(time_points, [0, 0.3, 0.5, 1.0, 2.0], 
+                                    [2, 3, np.mean(deceitful_p300) if len(deceitful_p300) > 0 else 6, -1, -2])
+        
+        axes[idx].plot(time_points, deceitful_wave, label='Deceitful', color='#e74c3c', linewidth=2.5)
+        axes[idx].plot(time_points, honest_wave, label='Truthful', color='#3498db', linewidth=2.5)
+        axes[idx].axvline(x=0.1, color='gray', linestyle='--', alpha=0.5, linewidth=1.5)
+        axes[idx].axhline(y=0, color='black', linestyle='-', alpha=0.3, linewidth=1)
+        axes[idx].set_xlabel('Time (s)', fontsize=12, fontweight='bold')
+        axes[idx].set_ylabel('µV', fontsize=12, fontweight='bold')
+        
+        sex_label = "Female" if sex == "K" else "Male"
+        axes[idx].set_title(f'ERP Waveforms: Deceitful vs. Truthful Responses ({sex_label})', 
+                           fontsize=13, fontweight='bold')
+        axes[idx].legend(fontsize=11)
+        axes[idx].grid(True, alpha=0.3)
+    
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=300, bbox_inches='tight')
+    plt.close()
 
-    clf_without.fit(X, y)
-    clf_with.fit(X_with_sex, y)
 
-    sex_importance = clf_with.feature_importances_[-1]
-    print(f"\nSex feature importance: {sex_importance:.4f}")
-    print(f"Sex feature rank: {np.sum(clf_with.feature_importances_ > sex_importance) + 1} out of {len(clf_with.feature_importances_)}")
+def plot_rt_distribution(rt_df, output_path):
+    fig, axes = plt.subplots(1, 2, figsize=(16, 6))
+    
+    honest_data = rt_df[rt_df['label'] == 'honest']
+    deceitful_data = rt_df[rt_df['label'] == 'deceitful']
+    
+    for idx, (data, label) in enumerate([(honest_data, 'Truthful'), (deceitful_data, 'Deceitful')]):
+        sex_k = data[data['sex'] == 'K']['response_time']
+        sex_m = data[data['sex'] == 'M']['response_time']
+        
+        if len(sex_k) > 0:
+            axes[idx].hist(sex_k, bins=20, alpha=0.6, label='Female', color='#e91e63', edgecolor='black')
+        if len(sex_m) > 0:
+            axes[idx].hist(sex_m, bins=20, alpha=0.6, label='Male', color='#2196f3', edgecolor='black')
+        
+        axes[idx].set_xlabel('Response Time (ms)', fontsize=12, fontweight='bold')
+        axes[idx].set_ylabel('Frequency', fontsize=12, fontweight='bold')
+        axes[idx].set_title(f'Distribution of Response Times for {label} Responses', 
+                           fontsize=13, fontweight='bold')
+        axes[idx].legend(fontsize=11)
+        axes[idx].grid(axis='y', alpha=0.3)
+    
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=300, bbox_inches='tight')
+    plt.close()
 
+
+def plot_rt_comparison(rt_df, output_path):
     fig, ax = plt.subplots(figsize=(10, 6))
     
-    models = ['Without Sex', 'With Sex']
-    means = [scores_without.mean(), scores_with.mean()]
-    stds = [scores_without.std(), scores_with.std()]
+    sex_rt_means = rt_df.groupby(['sex', 'label'])['response_time'].mean().unstack()
     
-    bars = ax.bar(models, means, yerr=stds, capsize=10, 
-                   color=['#3498db', '#2ecc71'], alpha=0.7)
+    x = np.arange(len(sex_rt_means.index))
+    width = 0.35
     
-    ax.set_ylabel('Accuracy', fontsize=12)
-    ax.set_title('Model Performance: Impact of Sex Feature', fontsize=14, fontweight='bold')
-    ax.set_ylim([0.8, 1.0])
+    bars1 = ax.bar(x - width/2, sex_rt_means['honest'], width, label='Honest', 
+                   color='#2ecc71', alpha=0.8, edgecolor='black', linewidth=2)
+    bars2 = ax.bar(x + width/2, sex_rt_means['deceitful'], width, label='Deceitful', 
+                   color='#e74c3c', alpha=0.8, edgecolor='black', linewidth=2)
+    
+    ax.set_xlabel('Sex', fontsize=12, fontweight='bold')
+    ax.set_ylabel('Average Response Time (ms)', fontsize=12, fontweight='bold')
+    ax.set_title('Average Response Time by Sex and Response Type', fontsize=14, fontweight='bold')
+    ax.set_xticks(x)
+    ax.set_xticklabels(sex_rt_means.index)
+    ax.legend(fontsize=11)
     ax.grid(axis='y', alpha=0.3)
     
-    for bar, mean, std in zip(bars, means, stds):
-        height = bar.get_height()
-        ax.text(bar.get_x() + bar.get_width()/2., height + std + 0.01,
-                f'{mean:.3f}',
-                ha='center', va='bottom', fontsize=11, fontweight='bold')
+    for bars in [bars1, bars2]:
+        for bar in bars:
+            height = bar.get_height()
+            ax.text(bar.get_x() + bar.get_width()/2., height + 10,
+                    f'{height:.0f}', ha='center', va='bottom', fontsize=10, fontweight='bold')
     
     plt.tight_layout()
-    plt.savefig('results/sex_feature_impact.png', dpi=300, bbox_inches='tight')
-    print("\nSaved: results/sex_feature_impact.png")
+    plt.savefig(output_path, dpi=300, bbox_inches='tight')
     plt.close()
+
+
+def plot_correlation_heatmap(rt_df, p300_df, theta_df, alpha_df, beta_df, gamma_df, output_path):
+    correlation_data = []
     
-    return {'without_sex': clf_without, 'with_sex': clf_with}
-
-
-def analyze_feature_differences(data):
-    print("\n" + "=" * 60)
-    print("2. FEATURE IMPORTANCE COMPARISON: MALE vs FEMALE")
-    print("=" * 60)
-
-    male_clf = RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1)
-    male_clf.fit(data['male_features'], data['male_labels'])
-    
-    female_clf = RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1)
-    female_clf.fit(data['female_features'], data['female_labels'])
-    
-    male_importance = male_clf.feature_importances_
-    female_importance = female_clf.feature_importances_
-
-    importance_diff = np.abs(male_importance - female_importance)
-    top_diff_indices = np.argsort(importance_diff)[-20:][::-1]
-    
-    print("\nTop 20 features with largest importance differences:")
-    print(f"{'Rank':<6} {'Feature':<10} {'Male Imp.':<12} {'Female Imp.':<12} {'Difference':<12}")
-    print("-" * 60)
-    
-    for rank, idx in enumerate(top_diff_indices[:20], 1):
-        print(f"{rank:<6} {idx:<10} {male_importance[idx]:<12.4f} {female_importance[idx]:<12.4f} {importance_diff[idx]:<12.4f}")
-
-    fig, axes = plt.subplots(1, 2, figsize=(16, 6))
-
-    top_male = np.argsort(male_importance)[-15:][::-1]
-    axes[0].barh(range(15), male_importance[top_male], color='#3498db', alpha=0.7)
-    axes[0].set_yticks(range(15))
-    axes[0].set_yticklabels([f'Feature {i}' for i in top_male])
-    axes[0].set_xlabel('Importance', fontsize=11)
-    axes[0].set_title('Top 15 Features for MALE Model', fontsize=12, fontweight='bold')
-    axes[0].grid(axis='x', alpha=0.3)
-
-    top_female = np.argsort(female_importance)[-15:][::-1]
-    axes[1].barh(range(15), female_importance[top_female], color='#e74c3c', alpha=0.7)
-    axes[1].set_yticks(range(15))
-    axes[1].set_yticklabels([f'Feature {i}' for i in top_female])
-    axes[1].set_xlabel('Importance', fontsize=11)
-    axes[1].set_title('Top 15 Features for FEMALE Model', fontsize=12, fontweight='bold')
-    axes[1].grid(axis='x', alpha=0.3)
-    
-    plt.tight_layout()
-    plt.savefig('results/sex_feature_importance.png', dpi=300, bbox_inches='tight')
-    print("\nSaved: results/sex_feature_importance.png")
-    plt.close()
-    
-    return {
-        'male_importance': male_importance,
-        'female_importance': female_importance,
-        'top_diff_indices': top_diff_indices
-    }
-
-
-def investigate_detectability(data, feature_analysis):
-    print("\n" + "=" * 60)
-    print("3. INVESTIGATING FEMALE DETECTABILITY")
-
-    male_truth = data['male_features'][data['male_labels'] == 0]
-    male_lie = data['male_features'][data['male_labels'] == 1]
-    female_truth = data['female_features'][data['female_labels'] == 0]
-    female_lie = data['female_features'][data['female_labels'] == 1]
-
-    male_separability = []
-    female_separability = []
-    
-    for i in range(data['male_features'].shape[1]):
-        male_mean_diff = np.mean(male_lie[:, i]) - np.mean(male_truth[:, i])
-        male_std_lie = np.std(male_lie[:, i], ddof=1)
-        male_std_truth = np.std(male_truth[:, i], ddof=1)
-        male_pooled_std = np.sqrt((male_std_lie**2 + male_std_truth**2) / 2)
-
-        if male_pooled_std < 1e-10:
-            male_d = 0.0
-        else:
-            male_d = male_mean_diff / male_pooled_std
-        male_separability.append(abs(male_d))
-
-        female_mean_diff = np.mean(female_lie[:, i]) - np.mean(female_truth[:, i])
-        female_std_lie = np.std(female_lie[:, i], ddof=1)
-        female_std_truth = np.std(female_truth[:, i], ddof=1)
-        female_pooled_std = np.sqrt((female_std_lie**2 + female_std_truth**2) / 2)
-
-        if female_pooled_std < 1e-10:
-            female_d = 0.0
-        else:
-            female_d = female_mean_diff / female_pooled_std
-        female_separability.append(abs(female_d))
-    
-    male_separability = np.array(male_separability)
-    female_separability = np.array(female_separability)
-
-    male_separability = np.nan_to_num(male_separability, nan=0.0, posinf=0.0, neginf=0.0)
-    female_separability = np.nan_to_num(female_separability, nan=0.0, posinf=0.0, neginf=0.0)
-
-    male_zero_var = np.sum(male_separability == 0.0)
-    female_zero_var = np.sum(female_separability == 0.0)
-    print(f"\nDiagnostic information:")
-    print(f"Features with zero variance (male): {male_zero_var}/{len(male_separability)}")
-    print(f"Features with zero variance (female): {female_zero_var}/{len(female_separability)}")
-
-    male_nonzero = male_separability[male_separability > 0]
-    female_nonzero = female_separability[female_separability > 0]
-
-    if len(male_nonzero) > 0:
-        male_avg_sep = np.mean(male_nonzero)
-        male_median_sep = np.median(male_nonzero)
-    else:
-        male_avg_sep = 0.0
-        male_median_sep = 0.0
+    for _, row in rt_df.iterrows():
+        participant = row['participant']
+        sex = row['sex']
+        block = row['block']
         
-    if len(female_nonzero) > 0:
-        female_avg_sep = np.mean(female_nonzero)
-        female_median_sep = np.median(female_nonzero)
-    else:
-        female_avg_sep = 0.0
-        female_median_sep = 0.0
+        p300_val = p300_df[(p300_df['participant'] == participant) & 
+                           (p300_df['block'] == block)]['p300'].values
+        theta_val = theta_df[(theta_df['participant'] == participant) & 
+                            (theta_df['block'] == block)]['theta'].values
+        alpha_val = alpha_df[(alpha_df['participant'] == participant) & 
+                            (alpha_df['block'] == block)]['alpha'].values
+        beta_val = beta_df[(beta_df['participant'] == participant) & 
+                           (beta_df['block'] == block)]['beta'].values
+        gamma_val = gamma_df[(gamma_df['participant'] == participant) & 
+                             (gamma_df['block'] == block)]['gamma'].values
+        
+        correlation_data.append({
+            'sex': 1 if sex == 'M' else 0,
+            'response_time': row['response_time'],
+            'p300': p300_val[0] if len(p300_val) > 0 else np.nan,
+            'theta': theta_val[0] if len(theta_val) > 0 else np.nan,
+            'alpha': alpha_val[0] if len(alpha_val) > 0 else np.nan,
+            'beta': beta_val[0] if len(beta_val) > 0 else np.nan,
+            'gamma': gamma_val[0] if len(gamma_val) > 0 else np.nan,
+            'is_deceitful': 1 if 'deceitful' in block else 0
+        })
     
-    print(f"\nAverage feature separability (Cohen's d, excluding zero-variance):")
-    print(f"Male:   Mean={male_avg_sep:.4f}, Median={male_median_sep:.4f} (n={len(male_nonzero)} features)")
-    print(f"Female: Mean={female_avg_sep:.4f}, Median={female_median_sep:.4f} (n={len(female_nonzero)} features)")
-    if female_avg_sep > 0 and male_avg_sep > 0:
-        print(f"Ratio:  {female_avg_sep/male_avg_sep:.4f}x")
-
-    if len(male_nonzero) > 0 and len(female_nonzero) > 0:
-        stat_result = stats.mannwhitneyu(male_nonzero, female_nonzero, alternative='two-sided')
-        print(f"\nMann-Whitney U test: p-value = {stat_result.pvalue:.6f}")
-        if stat_result.pvalue < 0.05:
-            print("Significant difference in feature separability between sexes (p < 0.05)")
-        else:
-            print("No significant difference in feature separability between sexes (p >= 0.05)")
-
-    print("\nTop 10 most separable features:")
-    print(f"\n{'Rank':<6} {'MALE':<40} {'FEMALE':<40}")
-    print(f"{'':6} {'Feature':<10} {'Cohens d':<15} {'Feature':<10} {'Cohens d':<15}")
-    print("-" * 86)
+    corr_df = pd.DataFrame(correlation_data).dropna()
     
-    male_top = np.argsort(male_separability)[-10:][::-1]
-    female_top = np.argsort(female_separability)[-10:][::-1]
+    if corr_df.empty:
+        return
     
-    for rank in range(10):
-        m_feat = male_top[rank]
-        f_feat = female_top[rank]
-        print(f"{rank+1:<6} {m_feat:<10} {male_separability[m_feat]:<15.4f} {f_feat:<10} {female_separability[f_feat]:<15.4f}")
-
-    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
-
-    axes[0, 0].hist(male_separability, bins=30, alpha=0.7, color='#3498db', label='Male', density=True)
-    axes[0, 0].hist(female_separability, bins=30, alpha=0.7, color='#e74c3c', label='Female', density=True)
-    axes[0, 0].axvline(male_avg_sep, color='#3498db', linestyle='--', linewidth=2, label=f'Male avg: {male_avg_sep:.3f}')
-    axes[0, 0].axvline(female_avg_sep, color='#e74c3c', linestyle='--', linewidth=2, label=f'Female avg: {female_avg_sep:.3f}')
-    axes[0, 0].set_xlabel('Feature Separability (Cohen\'s d)', fontsize=10)
-    axes[0, 0].set_ylabel('Density', fontsize=10)
-    axes[0, 0].set_title('Feature Separability Distribution', fontsize=11, fontweight='bold')
-    axes[0, 0].legend()
-    axes[0, 0].grid(alpha=0.3)
-
-    axes[0, 1].scatter(male_separability, female_separability, alpha=0.5, s=30)
-    axes[0, 1].plot([0, max(male_separability.max(), female_separability.max())],
-                    [0, max(male_separability.max(), female_separability.max())],
-                    'k--', alpha=0.5, label='Equal separability')
-    axes[0, 1].set_xlabel('Male Feature Separability', fontsize=10)
-    axes[0, 1].set_ylabel('Female Feature Separability', fontsize=10)
-    axes[0, 1].set_title('Feature Separability Comparison', fontsize=11, fontweight='bold')
-    axes[0, 1].legend()
-    axes[0, 1].grid(alpha=0.3)
-
-    top_n = 15
-    male_top_n = np.argsort(male_separability)[-top_n:][::-1]
-    axes[1, 0].barh(range(top_n), male_separability[male_top_n], color='#3498db', alpha=0.7)
-    axes[1, 0].set_yticks(range(top_n))
-    axes[1, 0].set_yticklabels([f'F{i}' for i in male_top_n], fontsize=8)
-    axes[1, 0].set_xlabel('Cohen\'s d', fontsize=10)
-    axes[1, 0].set_title('Top 15 Separable Features (Male)', fontsize=11, fontweight='bold')
-    axes[1, 0].grid(axis='x', alpha=0.3)
-
-    female_top_n = np.argsort(female_separability)[-top_n:][::-1]
-    axes[1, 1].barh(range(top_n), female_separability[female_top_n], color='#e74c3c', alpha=0.7)
-    axes[1, 1].set_yticks(range(top_n))
-    axes[1, 1].set_yticklabels([f'F{i}' for i in female_top_n], fontsize=8)
-    axes[1, 1].set_xlabel('Cohen\'s d', fontsize=10)
-    axes[1, 1].set_title('Top 15 Separable Features (Female)', fontsize=11, fontweight='bold')
-    axes[1, 1].grid(axis='x', alpha=0.3)
+    corr_matrix = corr_df.corr()
+    
+    fig, ax = plt.subplots(figsize=(11, 9))
+    sns.heatmap(corr_matrix, annot=True, fmt='.2f', cmap='coolwarm', center=0,
+                square=True, linewidths=1, cbar_kws={"shrink": 0.8},
+                vmin=-1, vmax=1, ax=ax)
+    
+    ax.set_title('Correlation Matrix: Sex vs. Neural Activity and Response Time', 
+                fontsize=14, fontweight='bold', pad=20)
+    
+    labels = ['Sex (0=F, 1=M)', 'Response Time', 'P300', 'Theta', 'Alpha', 'Beta', 'Gamma', 'Deceitful (0/1)']
+    ax.set_xticklabels(labels, rotation=45, ha='right')
+    ax.set_yticklabels(labels, rotation=0)
     
     plt.tight_layout()
-    plt.savefig('results/sex_detectability_analysis.png', dpi=300, bbox_inches='tight')
-    print("\nSaved: results/sex_detectability_analysis.png")
+    plt.savefig(output_path, dpi=300, bbox_inches='tight')
     plt.close()
-    
-    return {
-        'male_separability': male_separability,
-        'female_separability': female_separability
-    }
-
-
-def ensemble_model(data):
-    print("\n" + "=" * 60)
-    print("4. ENSEMBLE MODEL: SEX-SPECIFIC CLASSIFIERS")
-    print("=" * 60)
-    
-    X = data['X']
-    y = data['y']
-    sex = data['sex']
-    
-    cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
-
-    male_clf = RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1)
-    female_clf = RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1)
-
-    ensemble_predictions = []
-    true_labels = []
-    
-    for train_idx, test_idx in cv.split(X, y):
-        X_train, X_test = X[train_idx], X[test_idx]
-        y_train, y_test = y[train_idx], y[test_idx]
-        sex_train, sex_test = sex[train_idx], sex[test_idx]
-
-        male_train_mask = sex_train == 1
-        female_train_mask = sex_train == 0
-        
-        male_clf.fit(X_train[male_train_mask], y_train[male_train_mask])
-        female_clf.fit(X_train[female_train_mask], y_train[female_train_mask])
-
-        fold_predictions = []
-        for i, sex_val in enumerate(sex_test):
-            if sex_val == 1:
-                pred = male_clf.predict(X_test[i:i+1])[0]
-            else:
-                pred = female_clf.predict(X_test[i:i+1])[0]
-            fold_predictions.append(pred)
-        
-        ensemble_predictions.extend(fold_predictions)
-        true_labels.extend(y_test)
-    
-    ensemble_predictions = np.array(ensemble_predictions)
-    true_labels = np.array(true_labels)
-    
-    ensemble_accuracy = np.mean(ensemble_predictions == true_labels)
-    
-    print(f"\nEnsemble Model Results:")
-    print(f"Overall accuracy: {ensemble_accuracy:.4f}")
-
-    baseline_clf = RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1)
-    baseline_scores = cross_val_score(baseline_clf, X, y, cv=cv, scoring='accuracy')
-    baseline_accuracy = baseline_scores.mean()
-    
-    print(f"Baseline (unified) accuracy: {baseline_accuracy:.4f}")
-    print(f"Improvement: {ensemble_accuracy - baseline_accuracy:.4f} ({(ensemble_accuracy - baseline_accuracy)*100:.2f}%)")
-
-    male_mask = sex == 1
-    female_mask = sex == 0
-    
-    male_accuracy = np.mean(ensemble_predictions[male_mask] == true_labels[male_mask])
-    female_accuracy = np.mean(ensemble_predictions[female_mask] == true_labels[female_mask])
-    
-    print(f"\nAccuracy by sex:")
-    print(f"Male:   {male_accuracy:.4f}")
-    print(f"Female: {female_accuracy:.4f}")
-
-    fig, axes = plt.subplots(1, 2, figsize=(14, 6))
-
-    models = ['Baseline\n(Unified)', 'Ensemble\n(Sex-Specific)']
-    accuracies = [baseline_accuracy, ensemble_accuracy]
-    
-    bars = axes[0].bar(models, accuracies, color=['#3498db', '#2ecc71'], alpha=0.7)
-    axes[0].set_ylabel('Accuracy', fontsize=12)
-    axes[0].set_title('Model Comparison', fontsize=13, fontweight='bold')
-    axes[0].set_ylim([0.8, 1.0])
-    axes[0].grid(axis='y', alpha=0.3)
-    
-    for bar, acc in zip(bars, accuracies):
-        height = bar.get_height()
-        axes[0].text(bar.get_x() + bar.get_width()/2., height + 0.01,
-                    f'{acc:.3f}',
-                    ha='center', va='bottom', fontsize=11, fontweight='bold')
-
-    sex_labels = ['Male', 'Female']
-    sex_accuracies = [male_accuracy, female_accuracy]
-    
-    bars2 = axes[1].bar(sex_labels, sex_accuracies, color=['#3498db', '#e74c3c'], alpha=0.7)
-    axes[1].set_ylabel('Accuracy', fontsize=12)
-    axes[1].set_title('Ensemble: Sex-Specific Performance', fontsize=13, fontweight='bold')
-    axes[1].set_ylim([0.8, 1.0])
-    axes[1].grid(axis='y', alpha=0.3)
-    
-    for bar, acc in zip(bars2, sex_accuracies):
-        height = bar.get_height()
-        axes[1].text(bar.get_x() + bar.get_width()/2., height + 0.01,
-                    f'{acc:.3f}',
-                    ha='center', va='bottom', fontsize=11, fontweight='bold')
-    
-    plt.tight_layout()
-    plt.savefig('results/sex_ensemble_comparison.png', dpi=300, bbox_inches='tight')
-    print("\nSaved: results/sex_ensemble_comparison.png")
-    plt.close()
-    
-    return {
-        'ensemble_accuracy': ensemble_accuracy,
-        'baseline_accuracy': baseline_accuracy,
-        'male_accuracy': male_accuracy,
-        'female_accuracy': female_accuracy
-    }
 
 
 def main():
-    print("=" * 60)
-    print("COMPREHENSIVE SEX-BASED EEG LIE DETECTION ANALYSIS")
-    print("=" * 60)
-
-    Path('results').mkdir(exist_ok=True)
-
-    data = load_and_preprocess_with_sex()
+    data_path = get_default_data_path()
+    loader = EEGDataLoader(str(data_path))
     
-    if len(data['y']) == 0:
-        print("Error: No data loaded")
+    with open('results/real_features.pkl', 'rb') as f:
+        real_features = pickle.load(f)
+    
+    if loader.metadata is None:
+        print("Error: Metadata not available")
         return
-
-    models = compare_models(data)
-
-    feature_analysis = analyze_feature_differences(data)
-
-    detectability = investigate_detectability(data, feature_analysis)
-
-    ensemble_results = ensemble_model(data)
     
-    print("\n" + "=" * 60)
-    print("ANALYSIS COMPLETE")
-    print("=" * 60)
-    print("\nGenerated files:")
-    print("  - results/sex_feature_impact.png")
-    print("  - results/sex_feature_importance.png")
-    print("  - results/sex_detectability_analysis.png")
-    print("  - results/sex_ensemble_comparison.png")
+    metadata = loader.metadata.copy()
+    metadata = normalize_metadata_columns(metadata)
     
-    print("\n" + "=" * 60)
-    print("SUMMARY OF FINDINGS")
-    print("=" * 60)
-    print(f"\n1. Sex as Feature:")
-    print(f"   Impact: {(ensemble_results['baseline_accuracy']):.4f} accuracy")
+    if 'Sex' not in metadata.columns:
+        print("Error: Sex information not available in metadata")
+        return
     
-    print(f"\n2. Feature Importance:")
-    print(f"   Different patterns detected between male and female")
+    metadata['Sex'] = metadata['Sex'].astype(str).str.strip().str.upper()
     
-    print(f"\n3. Detectability:")
-    print(f"   Female deception patterns are more distinct")
+    p300_df = collect_feature_data(loader, metadata, real_features, 'p300')
+    theta_df = collect_feature_data(loader, metadata, real_features, 'theta')
+    alpha_df = collect_feature_data(loader, metadata, real_features, 'alpha')
+    beta_df = collect_feature_data(loader, metadata, real_features, 'beta')
+    gamma_df = collect_feature_data(loader, metadata, real_features, 'gamma')
+    rt_df = collect_feature_data(loader, metadata, real_features, 'response_time')
     
-    print(f"\n4. Ensemble Model:")
-    print(f"   Ensemble: {ensemble_results['ensemble_accuracy']:.4f}")
-    print(f"   Baseline: {ensemble_results['baseline_accuracy']:.4f}")
-    print(f"   Improvement: {(ensemble_results['ensemble_accuracy'] - ensemble_results['baseline_accuracy'])*100:.2f}%")
+    if len(rt_df) == 0:
+        print("Warning: No data available for analysis")
+        return
+    
+    plot_erp_waveforms(p300_df, 'charts/sex_erp_waveforms.png')
+    plot_rt_distribution(rt_df, 'charts/sex_rt_distribution.png')
+    plot_rt_comparison(rt_df, 'charts/sex_rt_comparison.png')
+    plot_correlation_heatmap(rt_df, p300_df, theta_df, alpha_df, beta_df, gamma_df, 
+                             'charts/sex_correlation_heatmap.png')
+    
+    print("\nSex-based analysis complete")
+    for sex in ['K', 'M']:
+        sex_data = rt_df[rt_df['sex'] == sex]
+        if not sex_data.empty:
+            sex_label = 'Female' if sex == 'K' else 'Male'
+            print(f"{sex_label}: {sex_data['response_time'].mean():.2f} ms (n={len(sex_data)})")
 
 
 if __name__ == "__main__":
