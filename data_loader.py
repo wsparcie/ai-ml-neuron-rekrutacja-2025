@@ -21,26 +21,27 @@ class EEGDataLoader:
         
         self.participants = self._scan_participants()
         self.metadata = self._load_metadata()
+        
         print(f"Found {len(self.participants)} participants")
         if self.metadata is not None:
             print(f"Loaded metadata for {len(self.metadata)} participants")
     
     def _scan_participants(self) -> List[str]:
-        excluded_folders = [
-            'Popsute dane - ASD793JD',
-            '6A517891 - stare dane'
-        ]
-        
+        excluded_folders = {'Popsute dane - ASD793JD', '6A517891 - stare dane'}
         participants = []
+        
         for item in self.data_root.iterdir():
-            if item.is_dir() and not item.name.startswith('.'):
-                if item.name in excluded_folders:
-                    print(f"Skipping excluded folder: {item.name}")
-                    continue
-                    
-                fif_files = list(item.glob('*.fif'))
-                if len(fif_files) > 0:
-                    participants.append(item.name)
+            if not item.is_dir() or item.name.startswith('.'):
+                continue
+            
+            if item.name in excluded_folders:
+                print(f"Skipping excluded folder: {item.name}")
+                continue
+            
+            fif_files = list(item.glob('*.fif'))
+            if fif_files:
+                participants.append(item.name)
+        
         return sorted(participants)
     
     def _load_metadata(self) -> Optional[pd.DataFrame]:
@@ -49,22 +50,23 @@ class EEGDataLoader:
             print("Warning: Ankiety.csv not found")
             return None
         
-        try:
-            for encoding in ['utf-8', 'cp1250', 'iso-8859-2', 'windows-1250']:
-                try:
-                    df = pd.read_csv(metadata_file, sep=';', encoding=encoding)
-                    df.columns = [col.strip() for col in df.columns]
-                    df['UUID'] = df['UUID'].str.upper().str.strip()
-                    print(f"Successfully loaded metadata with encoding: {encoding}")
-                    return df
-                except UnicodeDecodeError:
-                    continue
-            
-            print("Warning: Could not decode metadata file with any encoding")
-            return None
-        except Exception as e:
-            print(f"Warning: Could not load metadata: {e}")
-            return None
+        encodings = ['utf-8', 'cp1250', 'iso-8859-2', 'windows-1250']
+        
+        for encoding in encodings:
+            try:
+                df = pd.read_csv(metadata_file, sep=';', encoding=encoding)
+                df.columns = [col.strip() for col in df.columns]
+                df['UUID'] = df['UUID'].str.upper().str.strip()
+                print(f"Successfully loaded metadata with encoding: {encoding}")
+                return df
+            except UnicodeDecodeError:
+                continue
+            except Exception as e:
+                print(f"Warning: Could not load metadata: {e}")
+                return None
+        
+        print("Warning: Could not decode metadata file with any encoding")
+        return None
     
     def get_participant_sex(self, participant_id: str) -> Optional[str]:
         if self.metadata is None:
@@ -73,13 +75,13 @@ class EEGDataLoader:
         participant_id_upper = participant_id.upper()
         match = self.metadata[self.metadata['UUID'] == participant_id_upper]
         
-        if len(match) == 0:
+        if match.empty:
             return None
         
-        sex_col = [col for col in self.metadata.columns if 'e' in col.lower() and len(col) <= 5]
-        if sex_col:
-            return match[sex_col[0]].values[0]
-        return None
+        sex_col = [col for col in self.metadata.columns 
+                   if 'e' in col.lower() and len(col) <= 5]
+        
+        return match[sex_col[0]].values[0] if sex_col else None
     
     def get_participant_age(self, participant_id: str) -> Optional[int]:
         if self.metadata is None:
@@ -88,17 +90,19 @@ class EEGDataLoader:
         participant_id_upper = participant_id.upper()
         match = self.metadata[self.metadata['UUID'] == participant_id_upper]
         
-        if len(match) == 0:
+        if match.empty:
             return None
         
-        age_col = [col for col in self.metadata.columns if 'wiek' in col.lower() or 'age' in col.lower()]
-        if age_col:
-            age_value = match[age_col[0]].values[0]
-            try:
-                return int(age_value)
-            except (ValueError, TypeError):
-                return None
-        return None
+        age_col = [col for col in self.metadata.columns 
+                   if 'wiek' in col.lower() or 'age' in col.lower()]
+        
+        if not age_col:
+            return None
+        
+        try:
+            return int(match[age_col[0]].values[0])
+        except (ValueError, TypeError):
+            return None
     
     def load_participant_data(self, participant_id: str, 
                             preload: bool = True) -> Dict[str, mne.io.Raw]:
@@ -107,24 +111,25 @@ class EEGDataLoader:
             raise ValueError(f"Participant not found: {participant_id}")
         
         data = {}
+        
         for full_name, short_name in self.BLOCK_TYPES.items():
             file_pattern = f"*{full_name}_raw.fif"
             files = list(participant_path.glob(file_pattern))
             
-            if len(files) == 1:
-                try:
-                    raw = mne.io.read_raw_fif(files[0], preload=preload, verbose=False)
-                    data[short_name] = raw
-                    print(f"  Loaded {short_name}: {raw.n_times} samples, "
-                          f"{len(raw.ch_names)} channels, {raw.info['sfreq']} Hz")
-                except Exception as e:
-                    print(f"  Error loading {short_name}: {e}")
-            elif len(files) == 0:
+            if not files:
                 print(f"  Missing {short_name}")
-            else:
+                continue
+            
+            if len(files) > 1:
                 print(f"  Multiple files found for {short_name}, using first")
+            
+            try:
                 raw = mne.io.read_raw_fif(files[0], preload=preload, verbose=False)
                 data[short_name] = raw
+                print(f"  Loaded {short_name}: {raw.n_times} samples, "
+                      f"{len(raw.ch_names)} channels, {raw.info['sfreq']} Hz")
+            except Exception as e:
+                print(f"  Error loading {short_name}: {e}")
         
         return data
     
@@ -149,16 +154,20 @@ class EEGDataLoader:
             for full_name, short_name in self.BLOCK_TYPES.items():
                 file_pattern = f"*{full_name}_raw.fif"
                 files = list(participant_path.glob(file_pattern))
-                row[short_name] = len(files) > 0
+                row[short_name] = bool(files)
             
             summary.append(row)
         
         return pd.DataFrame(summary)
     
     def load_all_participants(self, max_participants: int = None) -> Dict:
-        participants_to_load = self.participants[:max_participants] if max_participants else self.participants
+        if max_participants:
+            participants_to_load = self.participants[:max_participants]
+        else:
+            participants_to_load = self.participants
         
         all_data = {}
+        
         for i, participant in enumerate(participants_to_load, 1):
             print(f"\n[{i}/{len(participants_to_load)}] Loading {participant}...")
             try:
@@ -178,10 +187,7 @@ def get_default_data_path() -> Path:
     if data_path.exists():
         return data_path
     
-    raise FileNotFoundError(
-        "Does the data directory exist?\n"
-        f"Searched: {data_path}"
-    )
+    raise FileNotFoundError(f"Data directory not found. Searched: {data_path}")
 
 
 if __name__ == "__main__":
@@ -192,12 +198,12 @@ if __name__ == "__main__":
         print(f"Data path: {data_path}\n")
         
         loader = EEGDataLoader(data_path)
-        
         summary = loader.create_summary_dataframe()
+        
         print("\nParticipant Summary:")
         print(summary.to_string())
         
-        if len(loader.participants) > 0:
+        if loader.participants:
             print(f"\n\nLoading example participant: {loader.participants[0]}")
             data = loader.load_participant_data(loader.participants[0])
             
@@ -207,7 +213,6 @@ if __name__ == "__main__":
                 print(f"\nEvents in {first_block}:")
                 print(f"  Total events: {len(events)}")
                 print(f"  Event types: {event_id}")
-        
+    
     except Exception as e:
         print(f"Error: {e}")
-        print("\nDoes the data directory exist?.")

@@ -21,10 +21,8 @@ class EEGPreprocessor:
     def filter_raw(self, raw: mne.io.Raw, copy: bool = True) -> mne.io.Raw:
         if copy:
             raw = raw.copy()
-
-        raw.filter(l_freq=self.l_freq, h_freq=self.h_freq, 
-                  picks='eeg', verbose=False)
-
+        
+        raw.filter(l_freq=self.l_freq, h_freq=self.h_freq, picks='eeg', verbose=False)
         raw.notch_filter(freqs=self.notch_freq, picks='eeg', verbose=False)
         
         return raw
@@ -33,25 +31,21 @@ class EEGPreprocessor:
                      event_id: Optional[Dict] = None,
                      baseline: Optional[Tuple] = (-0.2, 0),
                      reject: Optional[Dict] = None) -> mne.Epochs:
-
+        
         events, event_dict = mne.events_from_annotations(raw, verbose=False)
-
+        
         stimulus_event_ids = {k: v for k, v in event_dict.items() 
                               if 'PersonalDataField' in k}
         
-        if len(stimulus_event_ids) == 0:
+        if not stimulus_event_ids:
             print("    Warning: No stimulus events found")
             empty_events = np.empty((0, 3), dtype=int)
             return mne.Epochs(raw, empty_events, {}, 
                             tmin=self.epoch_tmin, tmax=self.epoch_tmax,
                             preload=True, verbose=False)
-
-        if event_id is None:
-            event_id = stimulus_event_ids
-
-        if reject is None:
-            reject = None
-
+        
+        event_id = event_id if event_id is not None else stimulus_event_ids
+        
         epochs = mne.Epochs(raw, events, event_id, 
                            tmin=self.epoch_tmin, tmax=self.epoch_tmax,
                            baseline=baseline, reject=reject, 
@@ -61,9 +55,8 @@ class EEGPreprocessor:
     
     def preprocess_pipeline(self, raw: mne.io.Raw, 
                            event_id: Optional[Dict] = None) -> mne.Epochs:
-
+        
         raw_filtered = self.filter_raw(raw, copy=True)
-
         epochs = self.create_epochs(raw_filtered, event_id=event_id)
         
         print(f"  Created {len(epochs)} epochs from {len(epochs.events)} events")
@@ -72,7 +65,6 @@ class EEGPreprocessor:
 
 
 class FeatureExtractor:
-
     FREQ_BANDS = {
         'delta': (0.5, 4),
         'theta': (4, 8),
@@ -85,20 +77,15 @@ class FeatureExtractor:
     
     def extract_statistical_features(self, epochs: mne.Epochs) -> np.ndarray:
         data = epochs.get_data()
-        
         features = []
+        
         for epoch in data:
             epoch_features = []
             for channel in epoch:
                 epoch_features.extend([
-                    np.mean(channel),
-                    np.std(channel),
-                    np.var(channel),
-                    skew(channel),
-                    kurtosis(channel),
-                    np.min(channel),
-                    np.max(channel),
-                    np.ptp(channel)
+                    np.mean(channel), np.std(channel), np.var(channel),
+                    skew(channel), kurtosis(channel),
+                    np.min(channel), np.max(channel), np.ptp(channel)
                 ])
             features.append(epoch_features)
         
@@ -106,13 +93,14 @@ class FeatureExtractor:
     
     def extract_frequency_features(self, epochs: mne.Epochs) -> np.ndarray:
         data = epochs.get_data()
-        
         features = []
+        
         for epoch in data:
             epoch_features = []
             for channel in epoch:
                 freqs, psd = signal.welch(channel, fs=self.sfreq, 
                                          nperseg=min(256, len(channel)))
+                
                 for band_name, (low, high) in self.FREQ_BANDS.items():
                     band_mask = (freqs >= low) & (freqs <= high)
                     band_power = np.mean(psd[band_mask])
@@ -125,7 +113,6 @@ class FeatureExtractor:
     def extract_combined_features(self, epochs: mne.Epochs) -> np.ndarray:
         stat_features = self.extract_statistical_features(epochs)
         freq_features = self.extract_frequency_features(epochs)
-        
         combined = np.hstack([stat_features, freq_features])
         
         print(f"  Extracted features: {combined.shape[1]} features per epoch")
@@ -134,11 +121,12 @@ class FeatureExtractor:
     
     def get_feature_names(self, channel_names: List[str]) -> List[str]:
         feature_names = []
-
         stat_names = ['mean', 'std', 'var', 'skew', 'kurt', 'min', 'max', 'ptp']
+        
         for ch in channel_names:
             for stat in stat_names:
                 feature_names.append(f"{ch}_{stat}")
+        
         for ch in channel_names:
             for band in self.FREQ_BANDS.keys():
                 feature_names.append(f"{ch}_{band}_power")
@@ -153,6 +141,7 @@ def create_binary_labels(epochs: mne.Epochs,
     
     for event_name in epochs.events[:, 2]:
         event_names = [name for name, id_ in epochs.event_id.items() if id_ == event_name]
+        
         if event_names:
             event_str = event_names[0]
             if any(honest in event_str for honest in honest_events):

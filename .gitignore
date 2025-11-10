@@ -69,3 +69,6 @@ models/
 tmp/
 temp/
 *.tmp
+
+results/
+charts/
