@@ -1,5 +1,5 @@
 <p align="center">
-  <h1 align="center">EEG Truth and Deception Detection</h1>
+  <h1 align="center">EEG Truth and Lie Detection</h1>
 </p>
 
 <p align="center">
