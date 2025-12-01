@@ -20,21 +20,49 @@
 
 </div>
 
+## Quick Start
+
+Run the entire analysis pipeline automatically:
+
+```bash
+python RUN.py
+```
+
+This executes all scripts and notebooks in sequence:
+
+1. Feature extraction (`extract_features.py`)
+2. Sex-based analysis (`sex_analysis.py`)
+3. Age-based analysis (`age_analysis.py`)
+4. EDA notebook (`eda.ipynb`)
+5. ML models notebook (`baseline_models.ipynb`)
+6. Neural networks notebook (`neural_networks.ipynb`)
+
 ## Notebooks
 
 ### Exploratory Data Analysis (eda.ipynb)
 
 Exploratory analysis covering signal quality assessment, P300 component visualization, neural oscillations analysis, sex-based comparisons through 4 integrated charts, age correlation analysis via 1 integrated chart, and topographic maps of brain activity patterns.
 
-### Machine Learning Models (baseline_models.ipynb)
+### Baseline Machine Learning Models (baseline_models.ipynb)
 
 Person-independent cross-validation using GroupKFold strategy with variance threshold and F-score based feature selection, including confusion matrices and performance comparison charts across all classifiers.
 
-##### Training and evaluation of:
+**Training and evaluation of:**
 
 - Random Forest Classifier
 - Support Vector Machine (SVM)
 - K-Nearest Neighbors (KNN)
+
+### Neural Network Experiments (neural_networks.ipynb)
+
+Deep learning approaches to deception detection using Multi-Layer Perceptrons (MLP) with person-independent validation.
+
+**Experiments include:**
+
+- Architecture comparison (1-3 hidden layers)
+- Activation function testing (ReLU, Tanh, Sigmoid)
+- Regularization analysis (L2 penalty)
+- Performance visualization and metrics
 
 ## Analysis Pipeline
 
@@ -46,11 +74,16 @@ graph TD
     D --> E[Features DB<br/>real_features.pkl]
     E --> F[Sex Analysis<br/>sex_analysis.py]
     E --> G[Age Analysis<br/>age_analysis.py]
-    E --> H[ML Models<br/>baseline_models.ipynb]
-    F --> I[Charts/<br/>4 visualizations]
-    G --> I
-    H --> J[Model Performance<br/>Metrics]
-
+    E --> H[EDA Notebook<br/>eda.ipynb]
+    E --> I[ML Models<br/>baseline_models.ipynb]
+    C --> J[ML Cache<br/>ml_features_cache.pkl]
+    J --> I
+    J --> K[Neural Networks<br/>neural_networks.ipynb]
+    F --> L[Charts/<br/>Sex visualizations]
+    G --> L
+    H --> L
+    I --> M[Model Performance<br/>Metrics & Charts]
+    K --> M
 ```
 
 ## Technical Details
@@ -131,22 +164,29 @@ graph LR
 
 ```
 IMPLEMENTATION/
+├── RUN.py                       # Automated pipeline runner
 ├── extract_features.py          # Feature extraction (P300, Theta, Alpha, Beta, Gamma, RT)
-├── sex_analysis.py              # Sex-based neural analysis (4 charts)
-├── age_analysis.py              # Age correlation analysis (1 chart)
+├── sex_analysis.py              # Sex-based neural analysis
+├── age_analysis.py              # Age correlation analysis
 ├── data_loader.py               # EEG data loading utilities
 ├── preprocessing.py             # Signal processing and feature extraction
+├── analysis_utils.py            # Helper functions for data analysis
+├── visualization_config.py      # Unified chart styling configuration
 ├── eda.ipynb                    # Exploratory data analysis notebook
 ├── baseline_models.ipynb        # Machine learning models notebook
+├── neural_networks.ipynb        # Deep learning experiments notebook
 ├── results/
-│   └── real_features.pkl        # Extracted features (generated)
-└── charts/
-    ├── sex_erp_waveforms.png
-    ├── sex_rt_distribution.png
-    ├── sex_rt_comparison.png
-    ├── sex_correlation_heatmap.png
-    └── age_rt_correlation.png
+│   ├── real_features.pkl        # Extracted features
+│   └── ml_features_cache.pkl    # Cached ML features
+└── charts/                      # Generated visualizations
 ```
+
+**Core Modules:**
+
+- **RUN.py**: Orchestrates the entire pipeline, executing Python scripts and Jupyter notebooks in sequence
+- **analysis_utils.py**: Shared utilities for metadata normalization and feature collection
+- **visualization_config.py**: Centralized color palette and plot styling for consistent charts across all notebooks
+- **preprocessing.py**: Feature caching mechanism to speed up repeated ML experiments
 
 **Dependencies:**
 
