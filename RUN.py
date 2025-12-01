@@ -30,6 +30,41 @@ def run_script(script_name, description):
         print(f"\nFile not found: {e}")
         return False
 
+def run_notebook(notebook_name, description):
+    print(f"\n{'='*80}")
+    print(f"Running: {description}")
+    print(f"{'='*80}\n")
+    
+    notebook_path = Path(__file__).parent / notebook_name
+    venv_python = Path(__file__).parent / "venv" / "Scripts" / "python.exe"
+    
+    try:
+        result = subprocess.run(
+            [str(venv_python), "-m", "jupyter", "nbconvert", 
+             "--to", "notebook", 
+             "--execute", 
+             "--inplace",
+             "--ExecutePreprocessor.timeout=600",
+             "--ExecutePreprocessor.kernel_name=lie-detector-venv",
+             str(notebook_path)],
+            cwd=Path(__file__).parent,
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        
+        print(f"\n{description} completed successfully")
+        return True
+        
+    except subprocess.CalledProcessError as e:
+        print(f"\nError running {notebook_name}: {e}")
+        print(f"Output: {e.stdout}")
+        print(f"Error: {e.stderr}")
+        return False
+    except FileNotFoundError as e:
+        print(f"\nFile not found: {e}")
+        return False
+
 def main():
     print("\n" + "="*80)
     print("EEG Truth and Lie Detection")
@@ -37,33 +72,43 @@ def main():
     
     start_time = time.time()
     
-    steps = [
+    scripts = [
         ("extract_features.py", "Feature Extraction"),
         ("sex_analysis.py", "Sex-Based Analysis"),
-        ("age_analysis.py", "Age-Based Analysis)"),
+        ("age_analysis.py", "Age-Based Analysis"),
+    ]
+    
+    notebooks = [
+        ("eda.ipynb", "Exploratory Data Analysis"),
+        ("baseline_models.ipynb", "Baseline Machine Learning Models"),
+        ("neural_networks.ipynb", "Neural Network Experiments"),
     ]
     
     results = []
     
-    for script_name, description in steps:
+    print("\nPhase 1: Running Python Scripts")
+    print("-" * 80)
+    
+    for script_name, description in scripts:
         success = run_script(script_name, description)
-        results.append((description, success))
+        results.append((description, success, "Script"))
         
         if not success:
-            print(f"\nWarning: {description} failed. Continuing with next step...")
+            print(f"\nWarning: {description} failed.")
         
         time.sleep(1)
     
-    elapsed_time = time.time() - start_time
+    print("\n\nPhase 2: Executing Jupyter Notebooks")
+    print("-" * 80)
     
-    print("\n" + "="*80)
-    print("ANALYSIS COMPLETE")
-    print("="*80)
-    
-    print("\nExecution Summary:")
-    for description, success in results:
-        status = "SUCCESS" if success else "FAILED"
-        print(f"  {status}: {description}")
+    for notebook_name, description in notebooks:
+        success = run_notebook(notebook_name, description)
+        results.append((description, success, "Notebook"))
+        
+        if not success:
+            print(f"\nWarning: {description} failed.")
+        
+        time.sleep(1)
 
 if __name__ == "__main__":
     main()

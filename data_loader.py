@@ -195,12 +195,12 @@ if __name__ == "__main__":
     
     try:
         data_path = get_default_data_path()
-        print(f"Data path: {data_path}\n")
+        print(f"Data path: .../{data_path.parent.name}/{data_path.name}\n")
         
         loader = EEGDataLoader(data_path)
         summary = loader.create_summary_dataframe()
         
-        print("\nParticipant Summary:")
+        print("\nParticipants")
         print(summary.to_string())
         
         if loader.participants:

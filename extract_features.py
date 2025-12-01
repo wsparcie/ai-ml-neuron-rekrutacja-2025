@@ -243,118 +243,6 @@ class RealFeatureExtractor:
                     results['response_time'][block_key][participant_id] = float(rt)
         
         return results
-    
-    def print_summary(self, results):
-        print("\n" + "=" * 80)
-        print("EXTRACTED DATA SUMMARY")
-        print("=" * 80)
-        
-        blocks = ['honest_true', 'deceitful_true', 'honest_fake', 'deceitful_fake']
-        
-        print("\n1. P300 AMPLITUDE (µV):")
-        print("-" * 40)
-        for block in blocks:
-            if len(results['p300'][block]) > 0:
-                values = np.array(list(results['p300'][block].values()))
-                mean_val = values.mean()
-                std_val = values.std()
-                n = len(values)
-                print(f"  {block:25s}: {mean_val:6.2f} ± {std_val:5.2f} µV (n={n})")
-        
-        print("\n2. THETA POWER (4-8 Hz, dB):")
-        print("-" * 40)
-        for block in blocks:
-            if len(results['theta'][block]) > 0:
-                values = np.array(list(results['theta'][block].values()))
-                mean_val = values.mean()
-                std_val = values.std()
-                n = len(values)
-                print(f"  {block:25s}: {mean_val:6.2f} ± {std_val:5.2f} dB (n={n})")
-        
-        print("\n3. ALPHA POWER (8-13 Hz, dB):")
-        print("-" * 40)
-        for block in blocks:
-            if len(results['alpha'][block]) > 0:
-                values = np.array(list(results['alpha'][block].values()))
-                mean_val = values.mean()
-                std_val = values.std()
-                n = len(values)
-                print(f"  {block:25s}: {mean_val:6.2f} ± {std_val:5.2f} dB (n={n})")
-        
-        print("\n4. BETA POWER (13-30 Hz, dB):")
-        print("-" * 40)
-        for block in blocks:
-            if len(results['beta'][block]) > 0:
-                values = np.array(list(results['beta'][block].values()))
-                mean_val = values.mean()
-                std_val = values.std()
-                n = len(values)
-                print(f"  {block:25s}: {mean_val:6.2f} ± {std_val:5.2f} dB (n={n})")
-        
-        print("\n5. GAMMA POWER (30-100 Hz, dB) [50Hz/100Hz notch filtered]:")
-        print("-" * 40)
-        for block in blocks:
-            if len(results['gamma'][block]) > 0:
-                values = np.array(list(results['gamma'][block].values()))
-                mean_val = values.mean()
-                std_val = values.std()
-                n = len(values)
-                print(f"  {block:25s}: {mean_val:6.2f} ± {std_val:5.2f} dB (n={n})")
-        
-        print("\n6. RESPONSE TIME (ms):")
-        print("-" * 40)
-        for block in blocks:
-            if len(results['response_time'][block]) > 0:
-                values = np.array(list(results['response_time'][block].values()))
-                mean_val = values.mean()
-                std_val = values.std()
-                n = len(values)
-                print(f"  {block:25s}: {mean_val:6.1f} ± {std_val:5.1f} ms (n={n})")
-        
-        print("\n" + "=" * 80)
-        
-        print("\nKEY COMPARISONS:")
-        print("-" * 40)
-        
-        if len(results['p300']['honest_true']) > 0 and len(results['p300']['deceitful_true']) > 0:
-            p300_ht = np.array(list(results['p300']['honest_true'].values()))
-            p300_dt = np.array(list(results['p300']['deceitful_true'].values()))
-            diff = p300_ht.mean() - p300_dt.mean()
-            pct = (diff / p300_ht.mean()) * 100
-            print(f"P300 - True Identity:")
-            print(f"  Honest: {p300_ht.mean():.2f} µV")
-            print(f"  Deceitful: {p300_dt.mean():.2f} µV")
-            print(f"  Difference: {diff:.2f} µV ({pct:+.1f}%)")
-        
-        if len(results['p300']['honest_fake']) > 0 and len(results['p300']['deceitful_fake']) > 0:
-            p300_hf = np.array(list(results['p300']['honest_fake'].values()))
-            p300_df = np.array(list(results['p300']['deceitful_fake'].values()))
-            diff = p300_df.mean() - p300_hf.mean()
-            pct = (diff / p300_hf.mean()) * 100
-            print(f"\nP300 - False Identity:")
-            print(f"  Honest: {p300_hf.mean():.2f} µV")
-            print(f"  Deceitful: {p300_df.mean():.2f} µV")
-            print(f"  Difference: {diff:.2f} µV ({pct:+.1f}%)")
-        
-        if len(results['response_time']['honest_true']) > 0 and len(results['response_time']['deceitful_true']) > 0:
-            rt_ht = np.array(list(results['response_time']['honest_true'].values()))
-            rt_dt = np.array(list(results['response_time']['deceitful_true'].values()))
-            cost = rt_dt.mean() - rt_ht.mean()
-            print(f"\nRT Cost - True Identity:")
-            print(f"  Honest: {rt_ht.mean():.1f} ms")
-            print(f"  Deceitful: {rt_dt.mean():.1f} ms")
-            print(f"  Cost: {cost:.1f} ms")
-        
-        if len(results['response_time']['honest_fake']) > 0 and len(results['response_time']['deceitful_fake']) > 0:
-            rt_hf = np.array(list(results['response_time']['honest_fake'].values()))
-            rt_df = np.array(list(results['response_time']['deceitful_fake'].values()))
-            cost = rt_df.mean() - rt_hf.mean()
-            print(f"\nRT Cost - False Identity:")
-            print(f"  Honest: {rt_hf.mean():.1f} ms")
-            print(f"  Deceitful: {rt_df.mean():.1f} ms")
-            print(f"  Cost: {cost:.1f} ms")
-        
-        print("\n" + "=" * 80)
 
 
 def save_features_to_pickle(results, filename='results/real_features.pkl'):
@@ -371,11 +259,6 @@ def save_features_to_pickle(results, filename='results/real_features.pkl'):
 
 
 if __name__ == '__main__':
-    print("=" * 80)
-    print("EXTRACTING FEATURES FROM .FIF DATA")
-    print("=" * 80)
-    
     extractor = RealFeatureExtractor()
     results = extractor.extract_all_features_by_block()
-    extractor.print_summary(results)
     save_features_to_pickle(results)
