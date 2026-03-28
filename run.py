@@ -8,13 +8,13 @@ def run_script(script_name, description):
     print(f"Running: {description}")
     print(f"{'='*80}\n")
     
-    script_path = Path(__file__).parent / script_name
-    venv_python = Path(__file__).parent / "venv" / "Scripts" / "python.exe"
+    script_path = Path(__file__).parent / "implementation" / script_name
+    venv_python = Path(__file__).parent / "implementation" / "venv" / "Scripts" / "python.exe"
     
     try:
         result = subprocess.run(
             [str(venv_python), str(script_path)],
-            cwd=Path(__file__).parent,
+            cwd=Path(__file__).parent / "implementation",
             capture_output=False,
             text=True,
             check=True
@@ -35,8 +35,8 @@ def run_notebook(notebook_name, description):
     print(f"Running: {description}")
     print(f"{'='*80}\n")
     
-    notebook_path = Path(__file__).parent / notebook_name
-    venv_python = Path(__file__).parent / "venv" / "Scripts" / "python.exe"
+    notebook_path = Path(__file__).parent / "implementation" / notebook_name
+    venv_python = Path(__file__).parent / "implementation" / "venv" / "Scripts" / "python.exe"
     
     try:
         result = subprocess.run(
@@ -47,7 +47,7 @@ def run_notebook(notebook_name, description):
              "--ExecutePreprocessor.timeout=600",
              "--ExecutePreprocessor.kernel_name=lie-detector-venv",
              str(notebook_path)],
-            cwd=Path(__file__).parent,
+            cwd=Path(__file__).parent / "implementation",
             capture_output=True,
             text=True,
             check=True
