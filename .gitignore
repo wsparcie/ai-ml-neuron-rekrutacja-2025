@@ -1,4 +1,4 @@
-# Python Virtual Environment
+# Virtual Environments
 venv/
 env/
 ENV/
@@ -7,7 +7,6 @@ ai-venv/
 
 # Jupyter Notebook
 .ipynb_checkpoints/
-*.ipynb_checkpoints
 
 # Python
 __pycache__/
@@ -37,13 +36,10 @@ wheels/
 checkpoints/
 
 # Data files
-*.fif
-*.csv
-*.h5
-*.hdf5
-DATA/
 data/
-datasets/
+*.fif
+*.xlsx
+*.csv
 
 # IDE
 .vscode/
@@ -57,18 +53,17 @@ datasets/
 Thumbs.db
 desktop.ini
 
-# Model outputs
+# Model outputs and results
 results/
+charts/
 outputs/
 logs/
 models/
 *.pkl
+*.h5
 *.joblib
 
 # Temporary files
 tmp/
 temp/
 *.tmp
-
-results/
-charts/

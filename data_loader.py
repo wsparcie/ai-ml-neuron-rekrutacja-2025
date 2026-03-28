@@ -182,7 +182,7 @@ class EEGDataLoader:
 def get_default_data_path() -> Path:
     implementation_dir = Path(__file__).parent
     root_dir = implementation_dir.parent
-    data_path = root_dir / 'DATA' / 'lie-detector'
+    data_path = root_dir / 'data'
     
     if data_path.exists():
         return data_path

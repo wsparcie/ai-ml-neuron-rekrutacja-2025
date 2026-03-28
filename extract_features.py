@@ -19,7 +19,7 @@ mne.set_log_level('WARNING')
 class RealFeatureExtractor:
     def __init__(self, data_path=None):
         if data_path is None:
-            data_path = Path(__file__).parent.parent / 'DATA' / 'lie-detector'
+            data_path = Path(__file__).parent.parent / 'data'
         
         self.data_path = Path(data_path)
         self.loader = EEGDataLoader(str(self.data_path))
