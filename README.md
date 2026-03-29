@@ -29,17 +29,17 @@ Polecenie wykonuje wszystkie skrypty i notebooki:
 1. Ekstrakcja cech (`extract_features.py`)
 2. Analiza według płci (`sex_analysis.py`)
 3. Analiza według wieku (`age_analysis.py`)
-4. Notebook EDA (`eda.ipynb`)
-5. Notebook modeli ML (`baseline_models.ipynb`)
-6. Notebook sieci neuronowych (`neural_networks.ipynb`)
+4. Notebook EDA (`notebooks/eda.ipynb`)
+5. Notebook modeli ML (`notebooks/baseline_models.ipynb`)
+6. Notebook sieci neuronowych (`notebooks/neural_networks.ipynb`)
 
 ## Notebooki
 
-### Eksploracyjna Analiza Danych (eda.ipynb)
+### Eksploracyjna Analiza Danych (notebooks/eda.ipynb)
 
 Analiza eksploracyjna obejmująca ocenę jakości sygnału, wizualizację składowej P300, analizę oscylacji neuronalnych, porównania według płci przez 4 zintegrowane wykresy, analizę korelacji z wiekiem przez 1 zintegrowany wykres oraz mapy topograficzne wzorców aktywności mózgu.
 
-### Bazowe Modele Uczenia Maszynowego (baseline_models.ipynb)
+### Bazowe Modele Uczenia Maszynowego (notebooks/baseline_models.ipynb)
 
 Walidacja krzyżowa niezależna od uczestnika przy użyciu strategii GroupKFold z progiem wariancji i selekcją cech opartą na F-score, w tym macierze pomyłek i wykresy porównania wydajności dla wszystkich klasyfikatorów.
 
@@ -49,7 +49,7 @@ Walidacja krzyżowa niezależna od uczestnika przy użyciu strategii GroupKFold 
 - Support Vector Machine (SVM)
 - K-Nearest Neighbors (KNN)
 
-### Eksperymenty z Sieciami Neuronowymi (neural_networks.ipynb)
+### Eksperymenty z Sieciami Neuronowymi (notebooks/neural_networks.ipynb)
 
 Podejścia głębokiego uczenia do detekcji kłamstwa przy użyciu wielowarstwowych perceptronów (MLP) z walidacją niezależną od uczestnika.
 
@@ -186,9 +186,10 @@ IMPLEMENTATION/
 ├── preprocessing.py             # przetwarzanie sygnałów i ekstrakcja cech
 ├── analysis_utils.py            # funkcje pomocnicze do analizy danych
 ├── visualization_config.py      # ujednolicona konfiguracja stylów wykresów
-├── eda.ipynb                    # notebook eksploracyjnej analizy danych
-├── baseline_models.ipynb        # notebook modeli uczenia maszynowego
-├── neural_networks.ipynb        # notebook eksperymentów głębokiego uczenia
+├── notebooks/
+│   ├── eda.ipynb                # notebook eksploracyjnej analizy danych
+│   ├── baseline_models.ipynb    # notebook modeli uczenia maszynowego
+│   └── neural_networks.ipynb    # notebook eksperymentów głębokiego uczenia
 ├── results/
 │   ├── real_features.pkl        # wyekstrahowane cechy
 │   └── ml_features_cache.pkl    # buforowane cechy ML

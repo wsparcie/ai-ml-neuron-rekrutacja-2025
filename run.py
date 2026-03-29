@@ -79,9 +79,9 @@ def main():
     ]
     
     notebooks = [
-        ("eda.ipynb", "Exploratory Data Analysis"),
-        ("baseline_models.ipynb", "Baseline Machine Learning Models"),
-        ("neural_networks.ipynb", "Neural Network Experiments"),
+        ("notebooks/eda.ipynb", "Exploratory Data Analysis"),
+        ("notebooks/baseline_models.ipynb", "Baseline Machine Learning Models"),
+        ("notebooks/neural_networks.ipynb", "Neural Network Experiments"),
     ]
     
     results = []
