@@ -1,9 +1,5 @@
 <p align="center">
-  <h1 align="center">EEG Truth and Lie Detection</h1>
-</p>
-
-<p align="center">
-    <strong>Neural patterns of deception through P300, oscillations and behavioral responses</strong>
+  <h1 align="center">Detekcja Prawdy i Kłamstwa z EEG</h1>
 </p>
 
 ## Tech Stack
@@ -20,139 +16,139 @@
 
 </div>
 
-## Quick Start
+## Start
 
-Run the entire analysis pipeline automatically:
+Automatyczne uruchomienie potoku:
 
 ```bash
-python RUN.py
+python run.py
 ```
 
-This executes all scripts and notebooks in sequence:
+Polecenie wykonuje wszystkie skrypty i notebooki:
 
-1. Feature extraction (`extract_features.py`)
-2. Sex-based analysis (`sex_analysis.py`)
-3. Age-based analysis (`age_analysis.py`)
-4. EDA notebook (`eda.ipynb`)
-5. ML models notebook (`baseline_models.ipynb`)
-6. Neural networks notebook (`neural_networks.ipynb`)
+1. Ekstrakcja cech (`extract_features.py`)
+2. Analiza według płci (`sex_analysis.py`)
+3. Analiza według wieku (`age_analysis.py`)
+4. Notebook EDA (`eda.ipynb`)
+5. Notebook modeli ML (`baseline_models.ipynb`)
+6. Notebook sieci neuronowych (`neural_networks.ipynb`)
 
-## Notebooks
+## Notebooki
 
-### Exploratory Data Analysis (eda.ipynb)
+### Eksploracyjna Analiza Danych (eda.ipynb)
 
-Exploratory analysis covering signal quality assessment, P300 component visualization, neural oscillations analysis, sex-based comparisons through 4 integrated charts, age correlation analysis via 1 integrated chart, and topographic maps of brain activity patterns.
+Analiza eksploracyjna obejmująca ocenę jakości sygnału, wizualizację składowej P300, analizę oscylacji neuronalnych, porównania według płci przez 4 zintegrowane wykresy, analizę korelacji z wiekiem przez 1 zintegrowany wykres oraz mapy topograficzne wzorców aktywności mózgu.
 
-### Baseline Machine Learning Models (baseline_models.ipynb)
+### Bazowe Modele Uczenia Maszynowego (baseline_models.ipynb)
 
-Person-independent cross-validation using GroupKFold strategy with variance threshold and F-score based feature selection, including confusion matrices and performance comparison charts across all classifiers.
+Walidacja krzyżowa niezależna od uczestnika przy użyciu strategii GroupKFold z progiem wariancji i selekcją cech opartą na F-score, w tym macierze pomyłek i wykresy porównania wydajności dla wszystkich klasyfikatorów.
 
-**Training and evaluation of:**
+**Trening i ewaluacja:**
 
-- Random Forest Classifier
+- Random Forest (RF)
 - Support Vector Machine (SVM)
 - K-Nearest Neighbors (KNN)
 
-### Neural Network Experiments (neural_networks.ipynb)
+### Eksperymenty z Sieciami Neuronowymi (neural_networks.ipynb)
 
-Deep learning approaches to deception detection using Multi-Layer Perceptrons (MLP) with person-independent validation.
+Podejścia głębokiego uczenia do detekcji kłamstwa przy użyciu wielowarstwowych perceptronów (MLP) z walidacją niezależną od uczestnika.
 
-**Experiments include:**
+**Eksperymenty obejmują:**
 
-- Architecture comparison (1-3 hidden layers)
-- Activation function testing (ReLU, Tanh, Sigmoid)
-- Regularization analysis (L2 penalty)
-- Performance visualization and metrics
+- porównanie architektur (1–3 warstwy ukryte)
+- testowanie funkcji aktywacji (ReLU, Tanh, Sigmoid)
+- analiza regularyzacji (kara L2)
+- wizualizacja wydajności i metryki
 
-## Analysis Pipeline
+## Potok analityczny
 
 ```mermaid
 graph TD
-    A[Raw EEG Data<br/>.fif files] --> B[Data Loader<br/>data_loader.py]
+    A[Surowe dane EEG<br/>pliki .fif] --> B[Ładowanie danych<br/>data_loader.py]
     B --> C[Preprocessing<br/>preprocessing.py]
-    C --> D[Feature Extraction<br/>extract_features.py]
-    D --> E[Features DB<br/>real_features.pkl]
-    E --> F[Sex Analysis<br/>sex_analysis.py]
-    E --> G[Age Analysis<br/>age_analysis.py]
-    E --> H[EDA Notebook<br/>eda.ipynb]
-    E --> I[ML Models<br/>baseline_models.ipynb]
-    C --> J[ML Cache<br/>ml_features_cache.pkl]
+    C --> D[Ekstrakcja cech<br/>extract_features.py]
+    D --> E[Baza cech<br/>real_features.pkl]
+    E --> F[Analiza płci<br/>sex_analysis.py]
+    E --> G[Analiza wieku<br/>age_analysis.py]
+    E --> H[Notebook EDA<br/>eda.ipynb]
+    E --> I[Modele ML<br/>baseline_models.ipynb]
+    C --> J[Cache ML<br/>ml_features_cache.pkl]
     J --> I
-    J --> K[Neural Networks<br/>neural_networks.ipynb]
-    F --> L[Charts/<br/>Sex visualizations]
+    J --> K[Sieci neuronowe<br/>neural_networks.ipynb]
+    F --> L[Charts/<br/>Wizualizacje płci]
     G --> L
     H --> L
-    I --> M[Model Performance<br/>Metrics & Charts]
+    I --> M[Wydajność modeli<br/>Metryki i wykresy]
     K --> M
 ```
 
-## Technical Details
+## Szczegóły techniczne
 
-### Analysis architecture
+### Architektura analizy
 
-- **15 participants** with complete data (all 4 blocks)
-- **4 experimental blocks** per participant:
-  - Honest Response to True Identity
-  - Deceitful Response to True Identity
-  - Honest Response to Fake Identity
-  - Deceitful Response to Fake Identity
-- **21 EEG channels** @ 250 Hz sampling rate
-- **~60 epochs** per participant (after rejection)
+- **15 uczestników** z kompletnymi danymi (wszystkie 4 bloki)
+- **4 bloki eksperymentalne** na uczestnika:
+  - szczera odpowiedź na prawdziwą tożsamość
+  - kłamliwa odpowiedź na prawdziwą tożsamość
+  - szczera odpowiedź na fałszywą tożsamość
+  - kłamliwa odpowiedź na fałszywą tożsamość
+- **21 kanałów EEG** @ 250 Hz częstotliwość próbkowania
+- **~60 epok** na uczestnika (po odrzuceniu artefaktów)
 
-### Signals Processing
+### Przetwarzanie sygnałów
 
-1. **Filtering**: 0.1-30 Hz bandpass, 50Hz notch
-2. **Epoching**: -0.2 to 0.8s around stimulus
-3. **Baseline Correction**: -0.2 to 0s pre-stimulus
-4. **Artifact Rejection**: Automatic threshold-based
+1. **Filtracja**: pasmowo-przepustowy 0,1–30 Hz, notch 50 Hz
+2. **Epokowanie**: −0,2 do 0,8 s względem bodźca
+3. **Korekcja linii bazowej**: −0,2 do 0 s przed bodźcem
+4. **Odrzucanie artefaktów**: automatyczne, progowe
 
 ```mermaid
 graph TD
-    A[Raw EEG Signal<br/>21 channels] --> B[Bandpass Filter<br/>0.1-30 Hz]
-    B --> C[Notch Filter<br/>50 Hz]
-    C --> D[Epoching<br/>-0.2 to 0.8s]
-    D --> E[Baseline Correction<br/>-0.2 to 0s]
-    E --> F[Artifact Rejection<br/>Threshold-based]
-    F --> G[Clean Epochs<br/>Ready for analysis]
+    A[Surowy sygnał EEG<br/>21 kanałów] --> B[Filtr pasmowy<br/>0.1-30 Hz]
+    B --> C[Filtr notch<br/>50 Hz]
+    C --> D[Epokowanie<br/>-0.2 do 0.8s]
+    D --> E[Korekcja linii bazowej<br/>-0.2 do 0s]
+    E --> F[Odrzucanie artefaktów<br/>Próg automatyczny]
+    F --> G[Czyste epoki<br/>Gotowe do analizy]
 
 ```
 
-## Features Extracted
+## Wyekstrahowane cechy
 
-### 1. P300 Component (300-500ms post-stimulus)
+### 1. Składowa P300 (300–500 ms po bodźcu)
 
-P300 component serves as a self-referential processing marker, showing higher amplitudes for honest responses to true identity and reduced amplitudes during deception.
+Składowa P300 służy jako marker przetwarzania autoreferencyjnego i wykazuje wyższe amplitudy przy szczerych odpowiedziach na prawdziwą tożsamość i zredukowane amplitudy podczas kłamstwa.
 
-### 2. Neural Oscillations (Welch's PSD)
+### 2. Oscylacje neuronalne (PSD Welcha)
 
-- **Theta (4-8 Hz)**: Working memory and cognitive control
-- **Alpha (8-13 Hz)**: Attention and inhibition
-- **Beta (13-30 Hz)**: Motor preparation and cognitive processing
-- **Gamma (30-100 Hz)**: High-level cognition (50Hz/100Hz notch filtered)
+- **Theta (4–8 Hz)**: pamięć robocza i kontrola poznawcza
+- **Alpha (8–13 Hz)**: uwaga i hamowanie
+- **Beta (13–30 Hz)**: przygotowanie ruchowe i przetwarzanie poznawcze
+- **Gamma (30–100 Hz)**: poznanie wysokiego poziomu (filtr notch 50/100 Hz)
 
-### Features Extraction
+### Ekstrakcja cech
 
-- **Time Domain**: P300 amplitude (300-500ms mean)
-- **Frequency Domain**: Welch's PSD (256-point window)
-- **Behavioral**: Real annotation-based RT (200-3000ms valid range)
+- **dziedzina czasu**: amplituda P300 (średnia 300–500 ms)
+- **dziedzina częstotliwości**: PSD Welcha (okno 256-punktowe)
+- **behawioralne**: czas reakcji na podstawie adnotacji (zakres 200–3000 ms)
 
 ```mermaid
 graph LR
-    A[Clean Epochs] --> B[Time Domain<br/>Analysis]
-    A --> C[Frequency Domain<br/>Analysis]
-    A --> D[Behavioral<br/>Analysis]
+    A[Czyste epoki] --> B[Analiza<br/>dziedziny czasu]
+    A --> C[Analiza<br/>dziedziny częstotliwości]
+    A --> D[Analiza<br/>behawioralna]
 
-    B --> E[P300 Amplitude<br/>300-500ms window]
+    B --> E[Amplituda P300<br/>okno 300-500ms]
 
-    C --> F[Welch's PSD<br/>256-point FFT]
+    C --> F[PSD Welcha<br/>FFT 256-punktowy]
     F --> G[Theta 4-8Hz]
     F --> H[Alpha 8-13Hz]
     F --> I[Beta 13-30Hz]
     F --> J[Gamma 30-100Hz]
 
-    D --> K[Response Time<br/>200-3000ms]
+    D --> K[Czas reakcji<br/>200-3000ms]
 
-    E --> L[Feature Vector<br/>per trial]
+    E --> L[Wektor cech<br/>na próbę]
     G --> L
     H --> L
     I --> L
@@ -160,79 +156,75 @@ graph LR
     K --> L
 ```
 
-## Project Structure
-
-```
-IMPLEMENTATION/
-├── RUN.py                       # Automated pipeline runner
-├── extract_features.py          # Feature extraction (P300, Theta, Alpha, Beta, Gamma, RT)
-├── sex_analysis.py              # Sex-based neural analysis
-├── age_analysis.py              # Age correlation analysis
-├── data_loader.py               # EEG data loading utilities
-├── preprocessing.py             # Signal processing and feature extraction
-├── analysis_utils.py            # Helper functions for data analysis
-├── visualization_config.py      # Unified chart styling configuration
-├── eda.ipynb                    # Exploratory data analysis notebook
-├── baseline_models.ipynb        # Machine learning models notebook
-├── neural_networks.ipynb        # Deep learning experiments notebook
-├── results/
-│   ├── real_features.pkl        # Extracted features
-│   └── ml_features_cache.pkl    # Cached ML features
-└── charts/                      # Generated visualizations
-```
-
-**Core Modules:**
-
-- **RUN.py**: Orchestrates the entire pipeline, executing Python scripts and Jupyter notebooks in sequence
-- **analysis_utils.py**: Shared utilities for metadata normalization and feature collection
-- **visualization_config.py**: Centralized color palette and plot styling for consistent charts across all notebooks
-- **preprocessing.py**: Feature caching mechanism to speed up repeated ML experiments
-
-**Dependencies:**
-
-- `mne` - EEG signal processing
-- `numpy` - Numerical operations
-- `pandas` - Data manipulation
-- `matplotlib` - Visualization
-- `seaborn` - Statistical plots
-- `scipy` - Signal processing and statistics
-- `scikit-learn` - Machine learning models
-
-## Experiment Design
+## Projekt eksperymentu
 
 ```mermaid
 graph TD
-    A[Participant] --> B[Block 1:<br/>Honest Response<br/>True Identity]
-    A --> C[Block 2:<br/>Deceitful Response<br/>True Identity]
-    A --> D[Block 3:<br/>Honest Response<br/>Fake Identity]
-    A --> E[Block 4:<br/>Deceitful Response<br/>Fake Identity]
+    A[Uczestnik] --> B[Blok 1:<br/>Szczera odpowiedź<br/>Prawdziwa tożsamość]
+    A --> C[Blok 2:<br/>Kłamliwa odpowiedź<br/>Prawdziwa tożsamość]
+    A --> D[Blok 3:<br/>Szczera odpowiedź<br/>Fałszywa tożsamość]
+    A --> E[Blok 4:<br/>Kłamliwa odpowiedź<br/>Fałszywa tożsamość]
 
-    B --> F[EEG Recording<br/>21 channels @ 250Hz]
+    B --> F[Zapis EEG<br/>21 kanałów @ 250Hz]
     C --> F
     D --> F
     E --> F
 
-    F --> G[~60 epochs/block<br/>after artifact rejection]
+    F --> G[~60 epok/blok<br/>po odrzuceniu artefaktów]
 
 ```
 
-## Key Findings
+## Struktura projektu
 
-### Demographics
+```
+IMPLEMENTATION/
+├── run.py                       # automatyczny runner potoku
+├── extract_features.py          # ekstrakcja cech (P300, Theta, Alpha, Beta, Gamma, RT)
+├── sex_analysis.py              # analiza neuronalna według płci
+├── age_analysis.py              # analiza korelacji z wiekiem
+├── data_loader.py               # narzędzia do wczytywania danych EEG
+├── preprocessing.py             # przetwarzanie sygnałów i ekstrakcja cech
+├── analysis_utils.py            # funkcje pomocnicze do analizy danych
+├── visualization_config.py      # ujednolicona konfiguracja stylów wykresów
+├── eda.ipynb                    # notebook eksploracyjnej analizy danych
+├── baseline_models.ipynb        # notebook modeli uczenia maszynowego
+├── neural_networks.ipynb        # notebook eksperymentów głębokiego uczenia
+├── results/
+│   ├── real_features.pkl        # wyekstrahowane cechy
+│   └── ml_features_cache.pkl    # buforowane cechy ML
+└── charts/                      # wygenerowane wizualizacje
+```
 
-- **Sex**: Males 70ms slower than females (712ms vs 643ms)
-- **Age**: Weak positive correlation (r=0.127, p=0.368, not significant)
+## Wnioski
 
-### P300 Amplitude
+### Demografia
 
-| Condition      | Honest  | Deceitful | Difference |
-| -------------- | ------- | --------- | ---------- |
-| True Identity  | 4.73 µV | 3.98 µV   | -16.0%     |
-| False Identity | 3.64 µV | 3.18 µV   | -12.8%     |
+- **Płeć**: Mężczyźni wolniejsi o 70 ms od kobiet (712 ms vs 643 ms)
+- **Wiek**: Słaba korelacja dodatnia (r=0,127, p=0,368, nieistotna)
 
-### Response Time
+### Amplituda P300
 
-| Condition      | Honest | Deceitful | RT Cost |
-| -------------- | ------ | --------- | ------- |
-| True Identity  | 658 ms | 663 ms    | 5 ms    |
-| False Identity | 643 ms | 746 ms    | 103 ms  |
+| Warunek             | Szczery | Kłamliwy | Różnica |
+| ------------------- | ------- | -------- | ------- |
+| Prawdziwa tożsamość | 4,73 µV | 3,98 µV  | −16,0%  |
+| Fałszywa tożsamość  | 3,64 µV | 3,18 µV  | −12,8%  |
+
+### Czas reakcji
+
+| Warunek             | Szczery | Kłamliwy | Koszt RT |
+| ------------------- | ------- | -------- | -------- |
+| Prawdziwa tożsamość | 658 ms  | 663 ms   | 5 ms     |
+| Fałszywa tożsamość  | 643 ms  | 746 ms   | 103 ms   |
+
+### Wyniki modeli
+
+#### Sieć neuronowa MLP
+
+| Metryka  | CV GroupKFold | Zbiór treningowy |
+| -------- | ------------- | ---------------- |
+| Accuracy | 46,0%         | 78,2%            |
+| F1-Score | 46,9%         | 77,8%            |
+
+**Konfiguracja:** architektura (250→100→50→25→1), aktywacja `tanh`, regularyzacja L2 = 0,0001, 6 463 próbek, 15 uczestników.
+
+Duża różnica między wynikami CV a treningowymi wskazuje na przeuczenie przy tak małej kohortie. Wyniki CV (~47% F1) są poniżej progu 60%, co jest typowe dla zadań detekcji kłamstwa z EEG przy walidacji niezależnej od uczestnika (GroupKFold).
